@@ -1,63 +1,87 @@
-// src/components/CitiesTable.js
 import React, { useState, useEffect } from 'react';
-import { fetchCities } from '../services/citiesService';
+import { Link, useNavigate } from 'react-router-dom';
 
-const CitiesTable = () => {
+function CitiesTable() {
   const [cities, setCities] = useState([]);
-  const [page, setPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const loadCities = async () => {
-      const newCities = await fetchCities(page);
-      setCities((prev) => [...prev, ...newCities]);
+    const fetchCities = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `https://public.opendatasoft.com/api/records/1.0/search/?dataset=geonames-all-cities-with-a-population-1000&q=${search}&rows=50&start=${offset}`
+        );
+        const data = await response.json();
+        if (data.records.length > 0) {
+          setCities(prevCities => [...prevCities, ...data.records]);
+          setOffset(prevOffset => prevOffset + 50);
+        } else {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch cities:', error);
+      } finally {
+        setLoading(false);
+      }
     };
+  
+    if (hasMore) {
+      fetchCities();
+    }
+  }, [hasMore, search, offset]);
 
-    loadCities();
-  }, [page]);
+  
+  const handleScroll = () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 && !loading) {
+      setOffset(prevOffset => prevOffset + 50);
+    }
+  };
 
-  // Infinite Scroll Logic here (e.g., using IntersectionObserver)
-  // Example Infinite Scroll Logic:
   useEffect(() => {
-    const handleScroll = () => {
-      if (window.innerHeight + document.documentElement.scrollTop !== document.documentElement.offsetHeight) return;
-      setPage((prev) => prev + 1);
-    };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
-  // Search, filter, and sort logic
-  const filteredCities = cities
-    .filter(city => city.fields.city.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => {
-      if (sortOrder === 'asc') return a.fields.city.localeCompare(b.fields.city);
-      return b.fields.city.localeCompare(a.fields.city);
-    });
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
+    setCities([]);
+    setOffset(0);
+    setHasMore(true);
+  };
+
+  const handleCityClick = (city) => {
+    navigate(`/weather/${city.fields.name}`);
+  };
 
   return (
     <div>
       <input
         type="text"
         placeholder="Search cities..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        value={search}
+        onChange={handleSearchChange}
       />
       <table>
         <thead>
           <tr>
-            <th onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}>City Name</th>
+            <th>City</th>
             <th>Country</th>
             <th>Timezone</th>
           </tr>
         </thead>
         <tbody>
-          {filteredCities.map(city => (
-            <tr key={city.recordid}>
+          {cities.map((city, index) => (
+            <tr key={index} onClick={() => handleCityClick(city)}>
               <td>
-                <a href={`/weather/${city.fields.city}`}>{city.fields.city}</a>
+                <Link to={`/weather/${city.fields.name}`}>
+                  {city.fields.name}
+                </Link>
               </td>
               <td>{city.fields.country}</td>
               <td>{city.fields.timezone}</td>
@@ -65,8 +89,10 @@ const CitiesTable = () => {
           ))}
         </tbody>
       </table>
+      {loading && <p>Loading...</p>}
     </div>
   );
-};
+}
 
 export default CitiesTable;
+
