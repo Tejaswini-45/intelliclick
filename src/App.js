@@ -1,18 +1,17 @@
-// src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import CitiesTable from './components/CitiesTable';
-import WeatherPage from './components/WeatherPage';
+import CityWeather from './components/CityWeather';
 
-const App = () => {
+function App() {
   return (
     <Router>
-      <Switch>
-        <Route path="/" exact component={CitiesTable} />
-        <Route path="/weather/:city" component={WeatherPage} />
-      </Switch>
+      <Routes>
+      <Route path="/" element={<CitiesTable />} />
+      <Route path="/weather/:cityId" element={<CityWeather />} />
+      </Routes>
     </Router>
   );
-};
+}
 
 export default App;
